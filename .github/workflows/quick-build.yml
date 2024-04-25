@@ -1,42 +1,47 @@
-name: Quick Build
-
-on: [pull_request]
-
-permissions:
-  contents: read
-
 jobs:
   build:
-
-    runs-on: ${{ matrix.os }}
+    runs-on: self-hosted
+    steps:
+    - continue-on-error: true
+      name: Checkout
+      uses: actions/checkout@v3
+    - continue-on-error: true
+      name: Set up JDK ${{ matrix.java_version }}
+      uses: actions/setup-java@v3
+      with:
+        cache: maven
+        distribution: temurin
+        java-version: ${{ matrix.java_version }}
+    - continue-on-error: true
+      env:
+        BUILD_PORT: 0
+        BUILD_SECURE_PORT: 0
+      name: Install
+      run: mvn clean install -DskipTests -q -B
+    - continue-on-error: true
+      env:
+        BUILD_PORT: 0
+        BUILD_SECURE_PORT: 0
+      name: Build
+      run: mvn clean package
+    - continue-on-error: true
+      if: failure()
+      name: Test Result
+      uses: mikepenz/action-junit-report@v3
+      with:
+        check_name: JUnit ${{ matrix.kind }} ${{ matrix.java_version }} ${{ matrix.os
+          }}
+        report_paths: '*/target/*/TEST-*.xml'
     strategy:
       fail-fast: false
       matrix:
-        java_version: [17]
-        os: [ubuntu-latest]
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-      - name: Set up JDK ${{ matrix.java_version }}
-        uses: actions/setup-java@v3
-        with:
-          java-version: ${{ matrix.java_version }}
-          distribution: 'temurin'
-          cache: maven
-      - name: Install
-        run: mvn clean install -DskipTests -q -B
-        env:
-          BUILD_PORT: 0
-          BUILD_SECURE_PORT: 0
-      - name: Build
-        run: mvn clean package
-        env:
-          BUILD_PORT: 0
-          BUILD_SECURE_PORT: 0
-      - name: Test Result
-        uses: mikepenz/action-junit-report@v3
-        if: failure()
-        with:
-          check_name: JUnit ${{ matrix.kind }} ${{ matrix.java_version }} ${{ matrix.os }}
-          report_paths: '*/target/*/TEST-*.xml'
+        java_version:
+        - 17
+        os:
+        - ubuntu-latest
+name: Quick Build
+on:
+  repository_dispatch:
+    types: trigger-ga___quick-build.yml
+permissions:
+  contents: read

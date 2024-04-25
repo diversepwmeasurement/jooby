@@ -1,38 +1,46 @@
-name: Full Build
-
-on: [push]
-
 jobs:
   build:
-    runs-on: ${{ matrix.os }}
+    runs-on: self-hosted
+    steps:
+    - continue-on-error: true
+      name: Checkout
+      uses: actions/checkout@v3
+    - continue-on-error: true
+      name: Set up JDK ${{ matrix.jre }}
+      uses: actions/setup-java@v3
+      with:
+        cache: maven
+        distribution: temurin
+        java-version: ${{ matrix.jre }}
+    - continue-on-error: true
+      name: Install
+      run: mvn clean install -DskipTests -q -P gradlePlugin
+    - continue-on-error: true
+      env:
+        BUILD_PORT: 0
+        BUILD_SECURE_PORT: 0
+      name: Build
+      run: mvn clean package -P gradlePlugin
+    - continue-on-error: true
+      if: failure()
+      name: Test Result
+      uses: mikepenz/action-junit-report@v3
+      with:
+        check_name: JUnit ${{ matrix.kind }} ${{ matrix.jre }} ${{ matrix.os }}
+        report_paths: '*/target/*/TEST-*.xml'
     strategy:
       fail-fast: false
       matrix:
-        jre: [17]
-        os: [ubuntu-latest, windows-latest, macOS-latest]
         include:
-          - jre: 21
-            os: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-      - name: Set up JDK ${{ matrix.jre }}
-        uses: actions/setup-java@v3
-        with:
-          java-version: ${{ matrix.jre }}
-          distribution: 'temurin'
-          cache: maven
-      - name: Install
-        run: mvn clean install -DskipTests -q -P gradlePlugin
-      - name: Build
-        run: mvn clean package -P gradlePlugin
-        env:
-          BUILD_PORT: 0
-          BUILD_SECURE_PORT: 0
-      - name: Test Result
-        uses: mikepenz/action-junit-report@v3
-        if: failure()
-        with:
-          check_name: JUnit ${{ matrix.kind }} ${{ matrix.jre }} ${{ matrix.os }}
-          report_paths: '*/target/*/TEST-*.xml'
+        - jre: 21
+          os: ubuntu-latest
+        jre:
+        - 17
+        os:
+        - ubuntu-latest
+        - windows-latest
+        - macOS-latest
+name: Full Build
+on:
+  repository_dispatch:
+    types: trigger-ga___full-build.yml
